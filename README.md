@@ -16,3 +16,6 @@ Docker é uma plataforma de containerização que permite empacotar aplicações
 
 ### Swagger
 Swagger é um conjunto de ferramentas open-source para documentação de APIs REST. Permite criar documentação interativa e visual das rotas da API, facilitando testes e integração. Segue a especificação OpenAPI e oferece uma interface gráfica onde desenvolvedores podem visualizar endpoints, parâmetros e testar requisições diretamente no navegador.
+
+### Vitest
+Vitest é um framework de testes unitários moderno e extremamente rápido, construído especificamente para projetos Vite. Oferece compatibilidade com a API do Jest, suporte nativo a TypeScript e ESM, execução paralela de testes e hot module replacement (HMR) para testes, proporcionando uma experiência de desenvolvimento ágil e eficiente.
