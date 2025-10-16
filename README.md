@@ -13,3 +13,6 @@ PostgreSQL é um sistema de gerenciamento de banco de dados relacional (SGBD) op
 
 ### Docker
 Docker é uma plataforma de containerização que permite empacotar aplicações e suas dependências em containers isolados. Facilita a portabilidade, consistência entre ambientes de desenvolvimento e produção, e simplifica o processo de deploy.
+
+### Swagger
+Swagger é um conjunto de ferramentas open-source para documentação de APIs REST. Permite criar documentação interativa e visual das rotas da API, facilitando testes e integração. Segue a especificação OpenAPI e oferece uma interface gráfica onde desenvolvedores podem visualizar endpoints, parâmetros e testar requisições diretamente no navegador.
