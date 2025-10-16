@@ -2,6 +2,9 @@
 
 ## Tecnologias Utilizadas
 
+### Fastify
+Fastify é um framework web altamente focado em performance e baixo overhead para Node.js. Oferece um sistema de plugins poderoso, validação de schemas integrada com JSON Schema, e é uma das opções mais rápidas para construção de APIs REST e aplicações web.
+
 ### Biome
 Biome é uma ferramenta moderna de linting e formatação de código para projetos JavaScript/TypeScript. É uma alternativa rápida ao ESLint e Prettier, oferecendo análise estática de código e formatação automática com desempenho superior.
 
