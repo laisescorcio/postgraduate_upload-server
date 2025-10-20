@@ -90,3 +90,92 @@ npm run drizzle-kit drop
 ```
 
 Isso garante que mudanças no código da aplicação estejam sempre sincronizadas com a estrutura do banco de dados, evitando erros em produção e facilitando o desenvolvimento colaborativo.
+
+## UUIDv7: A Melhor Escolha para Identificadores Únicos
+
+UUIDv7 é a versão mais recente e moderna da especificação UUID (Universally Unique Identifier), aprovada em 2024 como parte da RFC 9562. É considerada a melhor opção para identificadores primários em bancos de dados modernos, especialmente quando comparada com UUIDv4, auto-increment e outras alternativas.
+
+### O que é UUIDv7?
+
+UUIDv7 combina timestamp com dados aleatórios, gerando identificadores únicos que são **ordenados cronologicamente**. Cada UUID contém:
+- **48 bits**: Timestamp Unix em milissegundos
+- **12 bits**: Sequência aleatória para evitar colisões no mesmo milissegundo
+- **62 bits**: Dados aleatórios adicionais
+
+Formato: `018d2c8a-3b7f-7000-8000-123456789abc`
+
+### Por que UUIDv7 é a melhor opção?
+
+#### 1. **Ordenação Temporal Natural**
+- UUIDs são gerados em ordem cronológica crescente
+- Facilita consultas por intervalo de tempo: `WHERE id > '018d2c8a-0000-7000-0000-000000000000'`
+- Permite paginação eficiente sem campos adicionais de `created_at`
+
+#### 2. **Performance Superior em Índices B-Tree**
+Diferente do UUIDv4 (aleatório), o UUIDv7:
+- ✅ Evita fragmentação de índices
+- ✅ Mantém dados adjacentes no disco fisicamente próximos
+- ✅ Reduz operações de I/O em inserções
+- ✅ Melhora cache hit ratio
+- ❌ UUIDv4 causa "page splits" constantes, degradando performance
+
+**Impacto real**: Em tabelas grandes, UUIDv7 pode ser até 50% mais rápido que UUIDv4 para inserções.
+
+#### 3. **Distribuição em Sistemas Distribuídos**
+- Geração descentralizada sem coordenação
+- Não requer acesso ao banco de dados
+- Ideal para microserviços e aplicações serverless
+- Evita race conditions em ambientes concorrentes
+
+#### 4. **Segurança e Previsibilidade Controlada**
+- Não expõe contadores sequenciais (diferente de auto-increment)
+- Impossível inferir quantidade de registros
+- Dificulta enumeração de recursos: `/api/users/123` → `/api/users/018d2c8a-3b7f-7000-8000-123456789abc`
+- Mantém aleatoriedade suficiente para evitar colisões
+
+#### 5. **Compatibilidade Global**
+- Funciona nativamente com PostgreSQL (tipo `uuid`)
+- Aceito em APIs REST, GraphQL, mensageria
+- Portable entre diferentes bancos de dados
+- Não depende de sequências específicas do banco
+
+#### 6. **Debugabilidade**
+- Timestamp embutido permite rastreamento temporal
+- Facilita debugging: é possível saber quando o registro foi criado apenas olhando o ID
+- Útil em logs e rastreamento de eventos
+
+### Comparação com Outras Opções
+
+| Característica | UUIDv7 | UUIDv4 | Auto-increment | ULID |
+|----------------|--------|--------|----------------|------|
+| Ordenado | ✅ Sim | ❌ Não | ✅ Sim | ✅ Sim |
+| Performance B-Tree | ⚡ Excelente | 🐌 Ruim | ⚡ Excelente | ⚡ Excelente |
+| Distribuído | ✅ Sim | ✅ Sim | ❌ Não | ✅ Sim |
+| Seguro | ✅ Sim | ✅ Sim | ❌ Não | ✅ Sim |
+| Padrão RFC | ✅ Sim | ✅ Sim | ❌ Não | ❌ Não |
+| Tamanho | 128 bits | 128 bits | 32/64 bits | 128 bits |
+| Legibilidade | ✅ Boa | ⚠️ Média | ✅ Ótima | ✅ Boa |
+
+### Quando NÃO usar UUIDv7?
+
+- **Chaves estrangeiras de alta cardinalidade**: 16 bytes vs 4-8 bytes de integer pode impactar espaço
+- **Sistemas legados**: Se já usa auto-increment e migração é complexa
+- **Performance extrema em writes**: Em casos raros, integers puros ainda são marginalmente mais rápidos
+
+### Exemplo de Uso
+
+```typescript
+import { pgTable, uuid, timestamp, text } from 'drizzle-orm/pg-core';
+import { uuidv7 } from 'uuidv7';
+
+export const uploads = pgTable('uploads', {
+  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  filename: text('filename').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+});
+```
+
+### Conclusão
+
+UUIDv7 representa a evolução dos identificadores únicos, combinando as vantagens de UUIDs distribuídos com a performance de IDs ordenados. Para aplicações modernas, especialmente aquelas que precisam escalar horizontalmente ou operar em ambientes distribuídos, **UUIDv7 é a escolha recomendada**.
+
