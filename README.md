@@ -179,3 +179,132 @@ export const uploads = pgTable('uploads', {
 
 UUIDv7 representa a evolução dos identificadores únicos, combinando as vantagens de UUIDs distribuídos com a performance de IDs ordenados. Para aplicações modernas, especialmente aquelas que precisam escalar horizontalmente ou operar em ambientes distribuídos, **UUIDv7 é a escolha recomendada**.
 
+## Streams vs Buffers: Otimização de Memória em Upload de Arquivos
+
+Ao trabalhar com upload de arquivos em Node.js, a escolha entre usar **Streams** ou **Buffers** tem um impacto significativo no consumo de memória e na capacidade de escalar a aplicação. Este projeto utiliza Streams para garantir eficiência e performance.
+
+### O Problema com Buffers
+
+Quando utilizamos `toBuffer()` para processar arquivos:
+
+```typescript
+// ❌ EVITE ESTA ABORDAGEM
+const file = await uploadedFile.toBuffer()
+```
+
+**Problemas:**
+
+1. **Consumo de Memória Proporcional ao Arquivo**
+   - Um arquivo de 2MB consome 2MB de RAM
+   - 10 uploads simultâneos = 20MB de RAM
+   - 100 uploads simultâneos = 200MB de RAM
+   - A memória cresce linearmente com o tamanho e quantidade de arquivos
+
+2. **Risco de Out of Memory (OOM)**
+   - Em ambientes com memória limitada (containers, serverless), pode causar crashes
+   - Especialmente perigoso com arquivos grandes ou alta concorrência
+   - Aplicação pode se tornar instável em momentos de pico
+
+3. **Pressure no Garbage Collector**
+   - Alocação e liberação constante de grandes blocos de memória
+   - GC precisa trabalhar mais, aumentando pausas (stop-the-world)
+   - Degrada a performance geral da aplicação
+
+4. **Latência de Resposta**
+   - Precisa aguardar o arquivo completo ser carregado na memória antes de processar
+   - Aumenta o tempo de resposta para o usuário
+   - Não permite processamento progressivo
+
+### A Solução com Streams
+
+Streams processam dados em **chunks** (pedaços pequenos -- frontend envia para o backend em pedaços, onde o backend salva na AWS (multipart/form-data)), permitindo manipular arquivos grandes de forma eficiente:
+
+```typescript
+// ✅ ABORDAGEM RECOMENDADA
+await uploadImage({
+  fileName: uploadedFile.filename,
+  contentType: uploadedFile.mimetype,
+  contentStream: uploadedFile.file, // Stream, não Buffer
+})
+```
+
+**Vantagens:**
+
+1. **Consumo de Memória Constante**
+   - Processa o arquivo em chunks de ~64KB
+   - Memória usada é constante, independente do tamanho do arquivo
+   - 1 upload de 2MB ou 100 uploads simultâneos consomem memória similar
+
+2. **Escalabilidade**
+   - Permite processar arquivos de qualquer tamanho
+   - Suporta alta concorrência sem degradação
+   - Ideal para ambientes com recursos limitados (containers, lambda functions)
+
+3. **Performance Superior**
+   - Processamento começa imediatamente, sem esperar o download completo
+   - Menor pressure no Garbage Collector
+   - Liberação de memória é mais rápida e previsível
+
+4. **Backpressure Automático**
+   - Se o destino (ex: S3) está lento, a leitura automaticamente desacelera
+   - Evita acúmulo de dados na memória
+   - Controle de fluxo nativo do Node.js
+
+### Comparação Prática
+
+| Aspecto | Buffer (`toBuffer()`) | Stream (`file`) |
+|---------|----------------------|-----------------|
+| Memória por arquivo 2MB | 2MB | ~64KB |
+| 100 uploads simultâneos | 200MB | ~6.4MB |
+| Arquivo de 100MB | 100MB | ~64KB |
+| Risco de OOM | ⚠️ Alto | ✅ Baixo |
+| Latência inicial | 🐌 Alta | ⚡ Baixa |
+| GC pressure | ⚠️ Alto | ✅ Baixo |
+| Escalabilidade | ❌ Limitada | ✅ Excelente |
+| Complexidade | ✅ Simples | ⚠️ Média |
+
+### Quando Usar Buffers?
+
+Existem cenários específicos onde buffers são apropriados:
+
+- **Arquivos muito pequenos** (< 1KB): O overhead de streams pode não compensar
+- **Necessidade de acesso aleatório**: Buffers permitem ler qualquer posição
+- **Transformações síncronas**: Quando precisa processar o arquivo inteiro de uma vez
+- **Criptografia de arquivo completo**: Alguns algoritmos requerem dados completos
+
+### Exemplo Real: Upload para S3
+
+```typescript
+// Stream permite enviar diretamente para S3 sem carregar em memória
+await s3Client.send(
+  new PutObjectCommand({
+    Bucket: 'my-bucket',
+    Key: filename,
+    Body: uploadedFile.file, // Stream - eficiente
+    ContentType: contentType,
+  })
+)
+
+// vs Buffer - ineficiente
+const buffer = await uploadedFile.toBuffer() // Carrega tudo na RAM
+await s3Client.send(
+  new PutObjectCommand({
+    Bucket: 'my-bucket',
+    Key: filename,
+    Body: buffer, // Buffer - consome muita memória
+  })
+)
+```
+
+### Conclusão
+
+Para aplicações que precisam lidar com uploads de arquivos de forma eficiente e escalável, **Streams são a escolha correta**. Eles garantem:
+
+- ✅ Uso eficiente de memória
+- ✅ Melhor performance sob carga
+- ✅ Escalabilidade horizontal
+- ✅ Menor custo de infraestrutura
+- ✅ Aplicação mais resiliente e estável
+
+O trade-off é uma complexidade ligeiramente maior no código, mas os benefícios em produção compensam amplamente, especialmente em ambientes com recursos limitados ou alta concorrência.
+
