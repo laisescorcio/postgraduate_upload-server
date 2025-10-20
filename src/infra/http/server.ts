@@ -6,6 +6,7 @@ import { uploadImagesRoute } from "./routes/upload-images";
 import fastifyMultipart from "@fastify/multipart";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import { transformSwaggerSchema } from "./transform-swagger-schema";
 
 const server = fastify();
 
@@ -46,7 +47,7 @@ server.register(fastifySwagger, {
       version: "1.0.0",
     },
   },
-  transform: jsonSchemaTransform
+  transform: transformSwaggerSchema
 });
 
 server.register(fastifySwaggerUi, {
